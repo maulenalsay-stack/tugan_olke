@@ -681,7 +681,7 @@ form.entry{padding:20px;display:flex;flex-direction:column;gap:12px}
     <div class="trwrap">
       <form class="card trbox" id="trForm">
         <label for="trIn" class="eyebrow" style="color:var(--muted)">Орысша</label>
-        <textarea id="trIn" lang="ru" maxlength="400" placeholder="Например: Я хочу научиться говорить по-казахски">Я хочу научиться говорить по-казахски</textarea>
+        <textarea id="trIn" lang="ru" maxlength="240" placeholder="Например: Я хочу научиться говорить по-казахски">Я хочу научиться говорить по-казахски</textarea>
         <div class="row"><button class="btn primary" type="submit" id="trGo">Қазақшаға аудару</button><span class="muted" id="trState" style="font-size:13px"></span></div>
         <div class="trout" id="trOut" aria-live="polite"></div>
       </form>
@@ -1304,7 +1304,28 @@ $("#limitDiary").addEventListener("click",()=>{const t=today();t.snooze=t.secs+3
 
 /* ---------- translator ---------- */
 let CLAUDE_TR=null;
-try{if(window.claude&&claude.use)claude.use("sample").then(x=>{CLAUDE_TR=x;$("#trState").textContent=x?"":"Claude аудармашысы бұл жерде қосылмаған — таспадағы фразалардан іздеймін."}).catch(()=>{})}catch(e){}
+function decodeHTML(t){const el=document.createElement("textarea");el.innerHTML=t;return el.value}
+async function freeTranslate(ru){
+  if(trAbort)trAbort.abort();trAbort=new AbortController();
+  $("#trGo").disabled=true;$("#trState").textContent="Аударып жатырмын…";
+  try{
+    const url="https://api.mymemory.translated.net/get?langpair=ru%7Ckk&q="+encodeURIComponent(ru);
+    const r=await fetch(url,{signal:trAbort.signal});
+    const j=await r.json();
+    const kk=decodeHTML(((j&&j.responseData&&j.responseData.translatedText)||"").trim());
+    if(!r.ok||j.responseStatus==429||/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(kk))throw{code:"limit"};
+    if(!kk||kk.toLowerCase()===ru.toLowerCase())throw{code:"empty"};
+    const m=localMatches(ru).slice(0,3);
+    showTr(ru,{kk,words:[],tip:""});
+    $("#trOut").insertAdjacentHTML("beforeend",'<p class="muted" style="font-size:12px">Аударма: MyMemory (тегін машиналық аударма). Маңызды мәтінді мұғаліммен тексер.</p>'+(m.length?'<span class="eyebrow" style="color:var(--muted)">Таспадан ұқсас фразалар</span><div class="dict">'+m.map(c=>'<div class="dict-row"><div style="min-width:0;flex:1"><div class="kk" lang="kk">'+esc(c.kk.replace(/\n/g," / "))+'</div><div class="ru">'+esc(c.ru)+"</div></div></div>").join("")+"</div>":""));
+    $("#trState").textContent="";
+  }catch(err){
+    if(err&&err.name==="AbortError")return;
+    const why=err&&err.code==="limit"?"Бүгінгі тегін аударма шегі бітті, ертең қайта байқап көр.":"Аудару үшін интернет керек. Төменде таспадағы ұқсас фразалар.";
+    showLocal(ru,why);$("#trState").textContent="";
+  }finally{$("#trGo").disabled=false}
+}
+try{if(window.claude&&claude.use)claude.use("sample").then(x=>{CLAUDE_TR=x}).catch(()=>{})}catch(e){}
 const TR_EX=["Доброе утро, мама!","Как пройти до школы?","Мне нравится читать книги","Сколько стоит этот хлеб?","Я скучаю по бабушке"];
 $("#trEx").innerHTML=TR_EX.map(t=>'<button type="button" class="chip-btn" data-ex="'+esc(t)+'">'+esc(t)+"</button>").join("");
 $("#trEx").addEventListener("click",e=>{const b=e.target.closest("[data-ex]");if(!b)return;$("#trIn").value=b.dataset.ex;$("#trForm").requestSubmit()});
@@ -1333,7 +1354,7 @@ function showLocal(ru,note){
 }
 $("#trForm").addEventListener("submit",async e=>{
   e.preventDefault();const ru=$("#trIn").value.trim();if(!ru)return;
-  if(!CLAUDE_TR){showLocal(ru,"Толық аударма тек Claude ішінде ашылғанда жұмыс істейді. Төменде таспадағы ұқсас фразалар.");return}
+  if(!CLAUDE_TR){await freeTranslate(ru);return}
   if(trAbort)trAbort.abort();trAbort=new AbortController();
   $("#trGo").disabled=true;$("#trState").textContent="Аударып жатырмын…";
   try{
