@@ -3,7 +3,7 @@
 // Мазмұнды өзгерткенде (data/cards.json, аудио) бұл файлды өзгертудің қажеті жоқ:
 // cards.json әрқашан алдымен желіден алынады.
 // index.html-ді үлкен өзгерткенде ғана VERSION санын бір көбейт.
-const VERSION = "til-taspa-v1";
+const VERSION = "til-taspa-v2";
 const SHELL = [
   "./",
   "index.html",
