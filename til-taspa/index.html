@@ -558,7 +558,7 @@ form.entry{padding:20px;display:flex;flex-direction:column;gap:12px}
           <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
             <span class="eyebrow" id="todayEyebrow">1-апта · 1-күн</span>
             <h2 id="feedH">Бүгінгі таспа шектеулі</h2>
-            <p class="muted" style="font-size:14px">Шексіз айналдыру жоқ: күніне 4 жаңа ролик және 2 қайталау, 20 минут мақсат, 30 минутта таспа тоқтайды. Қалғаны — өзің айту, жазу, түсіндіру.</p>
+            <p class="muted" style="font-size:14px">Шексіз айналдыру жоқ: күніне 4 жаңа ролик және 4 қайталау, 20 минут мақсат, 30 минутта таспа тоқтайды. Қалғаны — өзің айту, жазу, түсіндіру.</p>
           </div>
         </div>
         <div class="stats">
@@ -891,13 +891,26 @@ function phraseHTML(c){
     if(w==="—"||w==="→")return '<span class="sep">'+w+"</span>";
     return '<span class="w" data-i="'+(i++)+'">'+markWord(w,c)+"</span>"}).join(" ")+"</span>").join("");
 }
+function extraLink(dayN){
+  const wd=((dayN-1)%7)+1;
+  if(dayN===1)return["#test","Бастапқы тест"];
+  if(dayN===28)return["#test","Қорытынды тест"];
+  if(wd===4)return["#duet","Дуэтке өту"];
+  if(wd===7)return["#sauat","Сауат ойыны"];
+  if(wd===6)return["#diary","Күнделік жазу"];
+  return null;
+}
 function dayNum(){return Math.min(28,dayIndex()+1)}
 function todayList(){
   const dn=dayNum();
   let list=CARDS.filter(c=>c.d===dn);
   const prev=CARDS.filter(c=>c.d<dn);
-  const savedPrev=prev.filter(c=>S.saved.includes(c.id));
-  const review=shuffle(savedPrev.length?savedPrev:prev).slice(0,2);
+  // review: saved first, then this week's earlier days, then older days — up to 4
+  const savedPrev=shuffle(prev.filter(c=>S.saved.includes(c.id)));
+  const wk=Math.ceil(dn/7);
+  const weekPrev=shuffle(prev.filter(c=>c.w===wk&&!savedPrev.includes(c)));
+  const older=shuffle(prev.filter(c=>!savedPrev.includes(c)&&!weekPrev.includes(c)));
+  const review=savedPrev.concat(weekPrev,older).slice(0,4);
   return list.concat(review);
 }
 function clipHTML(c,idx,total){
@@ -994,7 +1007,7 @@ function renderSide(){
   $("#phaseTip").textContent=W.tip+" Мақсат: күніне "+W.words+" жаңа сөз.";
   $("#phaseBar").innerHTML=[1,2,3,4].map(i=>'<i class="'+(i===w?"on":i<w?"past":"")+'"></i>').join("");
   const done=!!S.done[w+"-"+d];
-  $("#taskToday").innerHTML='<span class="num">'+d+'</span><div style="display:flex;flex-direction:column;gap:6px;min-width:0"><b>Бүгінгі тапсырма: '+esc(T.t)+'</b><span class="muted" style="font-size:14px">'+esc(T.d)+'</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" type="button" data-go="d'+((w-1)*7+d)+'">Бастау</button>'+(done?'<span class="pill good">Орындалды</span>':"")+"</div></div>";
+  $("#taskToday").innerHTML='<span class="num">'+d+'</span><div style="display:flex;flex-direction:column;gap:6px;min-width:0"><b>Бүгінгі тапсырма: '+esc(T.t)+'</b><span class="muted" style="font-size:14px">'+esc(T.d)+'</span><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" type="button" data-go="d'+((w-1)*7+d)+'">Бастау</button>'+(extraLink((w-1)*7+d)?'<button class="btn small gold" type="button" data-go="'+extraLink((w-1)*7+d)[0]+'">'+extraLink((w-1)*7+d)[1]+'</button>':"")+''+(done?'<span class="pill good">Орындалды</span>':"")+"</div></div>";
   $("#mixBars").innerHTML=RESEARCH.map(([n,a,b])=>'<div class="bar-row"><span>'+n+'</span><div style="display:flex;flex-direction:column;gap:3px"><div class="bar-track"><div class="bar-fill" style="width:'+a/60*100+'%"></div></div><div class="bar-track"><div class="bar-fill alt" style="width:'+b/60*100+'%"></div></div></div><span class="tnum" style="font-size:12px">+'+a+'%<br><span class="muted">+'+b+"%</span></span></div>").join("");
   updateStats();updateClock();
 }
@@ -1008,7 +1021,7 @@ function renderPlan(){
   $("#weeks").innerHTML=WEEKS.map((W,i)=>'<button type="button" class="week" style="--wc:'+WC[i]+'" data-w="'+(i+1)+'" aria-pressed="'+(wv===i+1)+'"><span class="wn">'+(i+1)+'-апта'+(cw===i+1?' · <span class="now">қазір</span>':"")+'</span><b>'+W.n+'</b><small>Күніне '+W.words+' сөз</small></button>').join("");
   $("#weekTip").innerHTML='<div><b>'+wv+'-апта, '+WEEKS[wv-1].n.toLowerCase()+'.</b> '+esc(WEEKS[wv-1].tip)+"</div>";
   $("#days").innerHTML=TASKS.map((T,i)=>{const d=i+1,key=wv+"-"+d,done=!!S.done[key],isToday=wv===cw&&d===cd;
-    return '<div class="card day'+(done?" done":"")+(isToday?" today-d":"")+'"><div class="dn"><span>'+((wv-1)*7+d)+'-күн</span>'+(isToday?'<span class="pill" style="color:var(--sky)">Бүгін</span>':"")+'</div><h3>'+esc(T.t)+'</h3><p class="muted" style="font-size:14px">'+esc(T.d)+'</p><p class="prev" lang="kk">'+CARDS.filter(c=>c.d===(wv-1)*7+d).map(c=>esc(c.kk.split("\n")[0].replace(/^—\s*/,""))).slice(0,2).join(" · ")+'</p><span class="big-n" aria-hidden="true">'+((wv-1)*7+d)+'</span><div class="acts"><button class="btn small" type="button" data-go="d'+((wv-1)*7+d)+'">4 роликті ашу</button><label class="check"><input type="checkbox" data-done="'+key+'"'+(done?" checked":"")+'> Орындадым</label></div></div>'}).join("");
+    return '<div class="card day'+(done?" done":"")+(isToday?" today-d":"")+'"><div class="dn"><span>'+((wv-1)*7+d)+'-күн</span>'+(isToday?'<span class="pill" style="color:var(--sky)">Бүгін</span>':"")+'</div><h3>'+esc(T.t)+'</h3><p class="muted" style="font-size:14px">'+esc(T.d)+'</p><p class="prev" lang="kk">'+CARDS.filter(c=>c.d===(wv-1)*7+d).map(c=>esc(c.kk.split("\n")[0].replace(/^—\s*/,""))).slice(0,2).join(" · ")+'</p><span class="big-n" aria-hidden="true">'+((wv-1)*7+d)+'</span><div class="acts"><button class="btn small" type="button" data-go="d'+((wv-1)*7+d)+'">4 роликті ашу</button>'+(extraLink((wv-1)*7+d)?'<button class="btn small gold" type="button" data-go="'+extraLink((wv-1)*7+d)[0]+'">'+extraLink((wv-1)*7+d)[1]+'</button>':"")+'<label class="check"><input type="checkbox" data-done="'+key+'"'+(done?" checked":"")+'> Орындадым</label></div></div>'}).join("");
   const n=Object.keys(S.done).filter(k=>S.done[k]).length;
   $("#planCount").textContent=n+" / 28 орындалды";$("#planProg").style.width=(n/28*100)+"%";
   $("#startTxt").textContent=S.start.split("-").reverse().join(".");
